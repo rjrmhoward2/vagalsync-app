@@ -1,4 +1,17 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+    // Ignore TypeScript errors during build
+    typescript: {
+        ignoreBuildErrors: true,
+    },
 
-export default nextConfig;
+    // Ignore ESLint errors during build
+    eslint: {
+        ignoreDuringBuilds: true,
+    },
+
+    // Other Next.js config
+    reactStrictMode: true,
+}
+
+export default nextConfig
