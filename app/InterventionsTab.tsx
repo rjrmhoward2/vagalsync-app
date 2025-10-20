@@ -21,17 +21,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Wind, 
-  Zap, 
-  Brain, 
-  Activity, 
-  Clock, 
-  TrendingUp, 
-  CheckCircle, 
-  Play, 
-  Pause, 
-  Calendar, 
+import {
+  Wind,
+  Zap,
+  Brain,
+  Activity,
+  Clock,
+  TrendingUp,
+  CheckCircle,
+  Play,
+  Pause,
+  Calendar,
   Award,
   Stethoscope,
   AlertCircle,
@@ -116,15 +116,22 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
   interventionLogs,
   setInterventionLogs
 }) => {
-  
+
   // State
   const [myVagalTone, setMyVagalTone] = useState<MyVagalToneScore | null>(null);
   const [providerProtocols, setProviderProtocols] = useState<ProviderProtocol[]>([]);
   const [showAIRecommendations, setShowAIRecommendations] = useState(false);
   const [expandedProtocols, setExpandedProtocols] = useState<Set<string>>(new Set());
-  
+  const [resonanceBreathingActive, setResonanceBreathingActive] = useState(false);
+
   // NEW: State for expanded quick-start interventions
   const [expandedInterventions, setExpandedInterventions] = useState<Set<string>>(new Set());
+  const [breathing478Active, setBreathing478Active] = useState(false);
+  const [coherenceBreathingActive, setCoherenceBreathingActive] = useState(false);
+  const [meditationActive, setMeditationActive] = useState(false);
+  const [coldExposureActive, setColdExposureActive] = useState(false);
+  const [yogaActive, setYogaActive] = useState(false);
+  const [binauralBeatsActive, setBinauralBeatsActive] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -171,8 +178,19 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
     setExpandedInterventions(newExpanded);
   };
 
+  const speak = (text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   const hasActiveProviderProtocol = providerProtocols.some(p => p.status === 'active');
-  
+
   // ENHANCED: Available intervention types with full protocol details
   const interventionTypes: DetailedIntervention[] = [
     {
@@ -185,7 +203,16 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       description: '4-4-4-4 breathing pattern for immediate parasympathetic activation',
       color: 'from-blue-500 to-cyan-500',
       active: breathingExercise,
-      toggle: () => setBreathingExercise(!breathingExercise),
+      toggle: () => {
+        const newState = !breathingExercise;
+        setBreathingExercise(newState);
+        if (newState) {
+          speak('Starting Box Breathing. Inhale for 4, hold for 4, exhale for 4, hold for 4.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('Box Breathing stopped');
+        }
+      },
       scientific_basis: 'Controlled breathing activates the vagus nerve and increases HRV within minutes. Multiple studies show 15-25% improvement in parasympathetic tone, with effects measurable within 2-7 days of consistent practice (Frontiers in Neuroscience, 2023).',
       implementation_steps: [
         'Find a quiet, comfortable space where you won\'t be disturbed',
@@ -217,6 +244,141 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       difficulty: 'easy',
       cost: 'free'
     },
+
+    {
+      id: 'resonance',
+      name: 'Resonance Breathing',
+      icon: Wind,
+      duration: '11 min',
+      effectiveness: 95,
+      vagal_impact: '+10-15 pts',
+      description: 'Optimal HRV enhancement at 5.5 breaths/minute - the gold standard',
+      color: 'from-cyan-500 to-blue-500',
+      active: resonanceBreathingActive,
+      toggle: () => {
+        const newState = !resonanceBreathingActive;
+        setResonanceBreathingActive(newState);
+        if (newState) {
+          speak('Starting Resonance Breathing. Breathe at 5.5 breaths per minute. Inhale for 5 seconds, exhale for 6 seconds.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('Resonance Breathing stopped');
+        }
+      },
+      scientific_basis: 'Resonance frequency breathing (5-6 breaths/min) maximizes HRV and baroreflex sensitivity. Multiple RCTs show 25-40% HRV improvement within 2-4 weeks (Journal of Clinical Psychology, 2024).',
+      implementation_steps: [
+        'Inhale slowly through nose for 5 seconds',
+        'Exhale slowly through mouth for 6 seconds (no holds)',
+        'Maintain smooth, continuous rhythm - imagine ocean waves',
+        'Practice 10 minutes twice daily for optimal results',
+        'Use VagalSync breath pacer for perfect 5.5 breaths/minute timing',
+        'Track HRV changes after each session'
+      ],
+      pro_tips: [
+        'This is the single most effective breathing pattern for HRV',
+        'No breath holds - just smooth, continuous flow',
+        'Slightly longer exhale activates parasympathetic system',
+        'Best practiced in quiet environment initially'
+      ],
+      contraindications: [
+        'None - safe for all users',
+        'If you feel lightheaded, slow the pace slightly'
+      ],
+      time_to_benefit: '2-4 weeks',
+      difficulty: 'easy',
+      cost: 'free'
+    },
+
+    {
+      id: 'breathing_478',
+      name: '4-7-8 Breathing',
+      icon: Wind,
+      duration: '8 min',
+      effectiveness: 88,
+      vagal_impact: '+7-10 pts',
+      description: 'Dr. Andrew Weil\'s technique for rapid relaxation and sleep',
+      color: 'from-purple-500 to-indigo-500',
+      active: breathing478Active,
+      toggle: () => {
+        const newState = !breathing478Active;
+        setBreathing478Active(newState);
+        if (newState) {
+          speak('Starting 4-7-8 Breathing. Inhale for 4, hold for 7, exhale for 8. Place your tongue behind your upper teeth.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('4-7-8 Breathing stopped');
+        }
+      },
+      scientific_basis: 'The 4-7-8 pattern triggers immediate vagal response. Effective for anxiety reduction and sleep onset within 5-10 minutes (Sleep Medicine Reviews, 2023).',
+      implementation_steps: [
+        'Place tongue tip against ridge behind upper front teeth',
+        'Exhale completely through mouth with whoosh sound',
+        'Close mouth, inhale through nose for 4 counts',
+        'Hold breath for 7 counts',
+        'Exhale through mouth for 8 counts',
+        'Complete 4 cycles initially, build to 8 over time',
+        'Practice twice daily'
+      ],
+      pro_tips: [
+        'The ratio (4:7:8) matters more than absolute duration',
+        'Exceptionally effective for falling asleep',
+        'Can abort panic attacks within 2-3 cycles',
+        'Keep tongue in position throughout'
+      ],
+      contraindications: [
+        'May cause temporary lightheadedness - start slowly',
+        'Avoid immediately after eating large meals'
+      ],
+      time_to_benefit: 'Immediate (5-10 min)',
+      difficulty: 'easy',
+      cost: 'free'
+    },
+
+    {
+      id: 'coherence',
+      name: 'Coherence Breathing',
+      icon: Wind,
+      duration: '15 min',
+      effectiveness: 90,
+      vagal_impact: '+9-14 pts',
+      description: 'Equal inhale/exhale for optimal heart-brain synchronization',
+      color: 'from-emerald-500 to-green-500',
+      active: coherenceBreathingActive,
+      toggle: () => {
+        const newState = !coherenceBreathingActive;
+        setCoherenceBreathingActive(newState);
+        if (newState) {
+          speak('Starting Coherence Breathing. Inhale for 5 seconds, exhale for 5 seconds. Focus on your heart area and cultivate gratitude.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('Coherence Breathing stopped');
+        }
+      },
+      scientific_basis: 'Heart coherence breathing synchronizes HRV with respiration. Improves emotional regulation and stress resilience (HeartMath Institute, 2024).',
+      implementation_steps: [
+        'Sit comfortably with straight spine',
+        'Inhale through nose for 5 seconds',
+        'Exhale through nose for 5 seconds',
+        'No holds - smooth, continuous breathing',
+        'Place attention on heart area',
+        'Cultivate appreciation or gratitude while breathing',
+        'Practice 10-15 minutes twice daily'
+      ],
+      pro_tips: [
+        'Emotional state matters - combine with positive emotion for 3x effect',
+        'Extremely effective before important meetings',
+        'HeartMath Inner Balance trainer pairs perfectly',
+        'Can be practiced anywhere, anytime'
+      ],
+      contraindications: [
+        'None - universally safe',
+        'Adjust pace if you have respiratory conditions'
+      ],
+      time_to_benefit: 'Immediate + cumulative',
+      difficulty: 'easy',
+      cost: 'free'
+    },
+
     {
       id: 'vns',
       name: 'VNS Therapy',
@@ -227,7 +389,16 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       description: 'Direct vagal nerve stimulation using FDA-cleared transcutaneous devices',
       color: 'from-purple-500 to-pink-500',
       active: arMode,
-      toggle: () => setArMode(!arMode),
+      toggle: () => {
+        const newState = !arMode;
+        setArMode(newState);
+        if (newState) {
+          speak('Starting VNS Therapy session. Duration 30 minutes. Ensure proper electrode placement.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('VNS Therapy stopped');
+        }
+      },
       scientific_basis: 'Transcutaneous VNS directly stimulates the auricular branch of the vagus nerve, producing measurable increases in HRV of 40-60% within 2-4 weeks. Clinical trials show significant improvements in vagal tone markers (Journal of Clinical Medicine, 2024).',
       implementation_steps: [
         'Ensure device is fully charged and electrodes are clean',
@@ -261,6 +432,7 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       difficulty: 'moderate',
       cost: 'medium'
     },
+
     {
       id: 'meditation',
       name: 'Guided Meditation',
@@ -270,8 +442,17 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       vagal_impact: '+6-10 pts',
       description: 'Structured mindfulness practice with audio guidance for stress reduction',
       color: 'from-indigo-500 to-purple-500',
-      active: false,
-      toggle: () => {},
+      active: meditationActive,
+      toggle: () => {
+        const newState = !meditationActive;
+        setMeditationActive(newState);
+        if (newState) {
+          speak('Starting Guided Meditation. Find a comfortable position and focus on your breath. Allow thoughts to pass without judgment.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('Meditation session ended');
+        }
+      },
       scientific_basis: 'Regular meditation practice increases alpha and theta brain wave activity, promoting parasympathetic dominance. Studies show 20-35% reduction in cortisol and sustained HRV improvements with consistent practice (Psychoneuroendocrinology, 2023).',
       implementation_steps: [
         'Choose a quiet space with minimal distractions and comfortable temperature',
@@ -303,6 +484,7 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       difficulty: 'easy',
       cost: 'low'
     },
+
     {
       id: 'cold',
       name: 'Cold Exposure',
@@ -312,8 +494,17 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       vagal_impact: '+10-15 pts',
       description: 'Controlled cold water immersion for hormetic stress adaptation',
       color: 'from-cyan-400 to-blue-600',
-      active: false,
-      toggle: () => {},
+      active: coldExposureActive,
+      toggle: () => {
+        const newState = !coldExposureActive;
+        setColdExposureActive(newState);
+        if (newState) {
+          speak('Starting Cold Exposure. Remember to breathe calmly and stay relaxed. Start with 30 seconds if you are new to this practice.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('Cold Exposure completed');
+        }
+      },
       scientific_basis: 'Regular cold exposure increases HRV by 15-30% and activates brown adipose tissue, improving metabolic health. The dive reflex directly stimulates vagal nerve activity, with benefits accumulating over 2-4 weeks (Nature Metabolism, 2023).',
       implementation_steps: [
         'Week 1-2: Start with 30-second cold shower finishes at end of normal shower',
@@ -348,6 +539,7 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       difficulty: 'advanced',
       cost: 'free'
     },
+
     {
       id: 'yoga',
       name: 'Restorative Yoga',
@@ -357,8 +549,17 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       vagal_impact: '+7-11 pts',
       description: 'Gentle, supported poses for deep parasympathetic activation',
       color: 'from-green-500 to-teal-500',
-      active: false,
-      toggle: () => {},
+      active: yogaActive,
+      toggle: () => {
+        const newState = !yogaActive;
+        setYogaActive(newState);
+        if (newState) {
+          speak('Starting Restorative Yoga. Move slowly and focus on deep breathing. Hold each pose for 5 to 10 minutes.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('Yoga session completed');
+        }
+      },
       scientific_basis: 'Restorative yoga activates the parasympathetic nervous system through sustained, supported poses. Research shows significant improvements in HRV, reduced cortisol, and enhanced vagal tone with regular practice (Journal of Alternative Medicine, 2024).',
       implementation_steps: [
         'Set up comfortable space with yoga mat, blocks, bolsters, and blankets',
@@ -391,6 +592,7 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       difficulty: 'easy',
       cost: 'low'
     },
+
     {
       id: 'binaural',
       name: 'Binaural Beats',
@@ -400,8 +602,17 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
       vagal_impact: '+5-8 pts',
       description: 'Audio brainwave entrainment for theta/delta wave induction',
       color: 'from-violet-500 to-fuchsia-500',
-      active: false,
-      toggle: () => {},
+      active: binauralBeatsActive,
+      toggle: () => {
+        const newState = !binauralBeatsActive;
+        setBinauralBeatsActive(newState);
+        if (newState) {
+          speak('Starting Binaural Beats. Make sure you are using stereo headphones for full effect. Close your eyes and focus on the audio.');
+        } else {
+          window.speechSynthesis.cancel();
+          speak('Binaural Beats stopped');
+        }
+      },
       scientific_basis: 'Binaural beats in theta (4-8 Hz) and delta (1-4 Hz) ranges promote relaxation and vagal activation. Studies show measurable improvements in HRV and stress markers during and after listening sessions (Frontiers in Human Neuroscience, 2023).',
       implementation_steps: [
         'Use stereo headphones or earbuds (required for binaural effect)',
@@ -444,7 +655,7 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
 
     const totalSessions = interventionLogs.length;
     const avgImprovement = interventionLogs.reduce((sum, log) => sum + log.improvement, 0) / totalSessions;
-    const bestSession = interventionLogs.reduce((best, log) => 
+    const bestSession = interventionLogs.reduce((best, log) =>
       log.improvement > best.improvement ? log : best
     );
     const thisWeek = interventionLogs.filter(log => {
@@ -575,18 +786,17 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
           <div className="space-y-6">
             {providerProtocols.map((protocol) => {
               const isExpanded = expandedProtocols.has(protocol.id);
-              
+
               return (
                 <div
                   key={protocol.id}
-                  className={`bg-gradient-to-br from-blue-600/10 to-cyan-600/10 rounded-2xl border-2 ${
-                    protocol.status === 'active' 
-                      ? 'border-blue-500/50' 
-                      : 'border-blue-500/20'
-                  } overflow-hidden transition-all`}
+                  className={`bg-gradient-to-br from-blue-600/10 to-cyan-600/10 rounded-2xl border-2 ${protocol.status === 'active'
+                    ? 'border-blue-500/50'
+                    : 'border-blue-500/20'
+                    } overflow-hidden transition-all`}
                 >
                   {/* Protocol Header */}
-                  <div 
+                  <div
                     className="p-6 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => toggleProtocol(protocol.id)}
                   >
@@ -594,11 +804,10 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="text-2xl font-bold text-white">{protocol.protocolName}</h4>
-                          <div className={`${
-                            protocol.status === 'active' ? 'bg-green-500/20 text-green-300' :
+                          <div className={`${protocol.status === 'active' ? 'bg-green-500/20 text-green-300' :
                             protocol.status === 'completed' ? 'bg-gray-500/20 text-gray-300' :
-                            'bg-yellow-500/20 text-yellow-300'
-                          } px-3 py-1 rounded-full text-xs font-bold uppercase`}>
+                              'bg-yellow-500/20 text-yellow-300'
+                            } px-3 py-1 rounded-full text-xs font-bold uppercase`}>
                             {protocol.status}
                           </div>
                         </div>
@@ -609,8 +818,8 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {isExpanded ? 
-                          <ChevronUp className="w-6 h-6 text-gray-400" /> : 
+                        {isExpanded ?
+                          <ChevronUp className="w-6 h-6 text-gray-400" /> :
                           <ChevronDown className="w-6 h-6 text-gray-400" />
                         }
                       </div>
@@ -666,7 +875,7 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
                       {/* Actions */}
                       {protocol.status === 'active' && (
                         <div className="flex gap-3 pt-4">
-                          <button 
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
                               startIntervention(protocol.interventions[0]);
@@ -701,22 +910,21 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
             <p className="text-gray-400">Click any card for detailed protocol guidance, or hit Start to begin immediately</p>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {interventionTypes.map((intervention) => {
             const isExpanded = expandedInterventions.has(intervention.id);
-            
+
             return (
               <div
                 key={intervention.id}
-                className={`rounded-2xl border-2 transition-all ${
-                  intervention.active
-                    ? `bg-gradient-to-br ${intervention.color} border-white/50 shadow-2xl`
-                    : 'bg-white/5 border-white/10 hover:border-white/30'
-                }`}
+                className={`rounded-2xl border-2 transition-all ${intervention.active
+                  ? `bg-gradient-to-br ${intervention.color} border-white/50 shadow-2xl`
+                  : 'bg-white/5 border-white/10 hover:border-white/30'
+                  }`}
               >
                 {/* Card Header - Always Visible - CLICKABLE TO EXPAND */}
-                <div 
+                <div
                   className="p-6 cursor-pointer"
                   onClick={() => toggleIntervention(intervention.id)}
                 >
@@ -737,25 +945,24 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       {/* Expand/Collapse Icon */}
-                      {isExpanded ? 
-                        <ChevronUp className="w-6 h-6 text-gray-400" /> : 
+                      {isExpanded ?
+                        <ChevronUp className="w-6 h-6 text-gray-400" /> :
                         <ChevronDown className="w-6 h-6 text-gray-400" />
                       }
-                      
+
                       {/* Start Button - Stops Propagation */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           startIntervention(intervention.id);
                         }}
-                        className={`${
-                          intervention.active 
-                            ? 'bg-white/20 px-3 py-1 animate-pulse' 
-                            : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 px-4 py-2'
-                        } text-white rounded-full text-sm font-bold transition-all flex items-center gap-1`}
+                        className={`${intervention.active
+                          ? 'bg-white/20 px-3 py-1 animate-pulse'
+                          : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 px-4 py-2'
+                          } text-white rounded-full text-sm font-bold transition-all flex items-center gap-1`}
                       >
                         {intervention.active ? (
                           <span className="text-xs">ACTIVE</span>
@@ -908,14 +1115,14 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
                 {hasActiveProviderProtocol ? 'Supplementary' : 'AI-Generated'} Recommendations
               </h3>
               <p className="text-gray-400">
-                {hasActiveProviderProtocol 
+                {hasActiveProviderProtocol
                   ? 'Additional evidence-based interventions to complement your provider protocol'
                   : 'Personalized interventions based on your myVagal Tone™ score'
                 }
               </p>
             </div>
           </div>
-          
+
           {hasActiveProviderProtocol && (
             <button
               onClick={() => setShowAIRecommendations(!showAIRecommendations)}
@@ -933,8 +1140,8 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-yellow-200">
-                <strong>Note:</strong> You have an active protocol from your healthcare provider. 
-                These AI recommendations are supplementary. Always prioritize your provider's guidance 
+                <strong>Note:</strong> You have an active protocol from your healthcare provider.
+                These AI recommendations are supplementary. Always prioritize your provider's guidance
                 and consult them before adding new interventions.
               </div>
             </div>
@@ -961,8 +1168,8 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
                   Get Personalized Clinical Protocols
                 </h3>
                 <p className="text-gray-300 mb-6">
-                  Connect with certified healthcare providers using ProfessionalFi to receive 
-                  custom intervention protocols tailored to your specific biomarker data and health goals. 
+                  Connect with certified healthcare providers using ProfessionalFi to receive
+                  custom intervention protocols tailored to your specific biomarker data and health goals.
                   Clinical protocols take priority over AI recommendations and provide professional oversight.
                 </p>
                 <button className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-lg font-bold hover:from-blue-600 hover:to-cyan-600 transition-all">
@@ -984,11 +1191,11 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
             <Calendar className="w-8 h-8 mr-3 text-cyan-400" />
             Recent Sessions
           </h3>
-          
+
           <div className="space-y-4">
             {interventionLogs.slice(0, 10).map((log) => (
-              <div 
-                key={log.id} 
+              <div
+                key={log.id}
                 className="bg-white/5 rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all"
               >
                 <div className="flex items-center justify-between">
@@ -1012,7 +1219,7 @@ const InterventionsTab: React.FC<InterventionTabProps> = ({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-6">
                     <div className="text-center">
                       <div className="text-xs text-white/60 mb-1">Before</div>

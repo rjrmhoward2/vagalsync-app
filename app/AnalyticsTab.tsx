@@ -6,9 +6,9 @@
 
 import React from 'react';
 import { TrendingUp, TrendingDown, BarChart3, Calendar, Target, Award, Clock, Activity, Heart, Brain } from 'lucide-react';
-import { getCurrentMyVagalTone, loadBiomarkerEntries } from './services/storageService';
+import { getCurrentMyVagalTone, loadBiomarkerEntries } from './services/storageService.ts';
 import { MyVagalToneScore } from './types/biomarker.types';
-import { calculateMyVagalTone } from './utils/calculations';
+import { calculateMyVagalTone } from './utils/calculations.ts';
 
 interface AnalyticsTabProps {
   metrics: any;

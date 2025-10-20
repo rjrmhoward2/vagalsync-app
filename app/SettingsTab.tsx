@@ -5,6 +5,7 @@
  * User profile and preferences
  */
 
+import HelpMenu from './components/shared/HelpMenu'
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser, signOut } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -86,6 +87,12 @@ export default function SettingsTab() {
       <div>
         <h1 className="text-2xl font-bold text-white">Settings</h1>
         <p className="text-gray-200 mt-1">Manage your account and preferences</p>
+      </div>
+
+      {/* Help Menu */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">Settings</h1>
+        <HelpMenu context="settings" />
       </div>
 
       {/* Account Info */}

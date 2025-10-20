@@ -65,13 +65,13 @@ export default function BiomarkerTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [entries, setEntries] = useState<BiomarkerEntry[]>([]);
   const [myVagalTone, setMyVagalTone] = useState<MyVagalToneScore | null>(null);
-  
+
   // Modal states
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [selectedBiomarker, setSelectedBiomarker] = useState<BiomarkerDefinition | null>(null);
   const [trendModalOpen, setTrendModalOpen] = useState(false);
   const [trendBiomarker, setTrendBiomarker] = useState<BiomarkerDefinition | null>(null);
-  
+
   // NEW: Sync states
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -83,41 +83,36 @@ export default function BiomarkerTab() {
   const loadData = async () => {
     setIsLoading(true);
     setSyncError(null);
-    
+
     try {
       // Get user ID from Supabase auth (or use demo-user)
       let userId = 'demo-user';
-      
+
       // Uncomment if using Supabase auth:
       // const { data: { user } } = await supabase.auth.getUser();
       // userId = user?.id || 'demo-user';
-      
+
       console.log('[BiomarkerTab] Loading data for user:', userId);
-      
+
       // NEW: Load from BOTH manual entry AND devices
-      const loadedEntries = await loadBiomarkerEntriesWithDevices(userId);
+      const loadedEntries = loadBiomarkerEntriesWithDevices();
       setEntries(loadedEntries);
-      
+
       console.log('[BiomarkerTab] Loaded entries:', {
         total: loadedEntries.length,
         manual: loadedEntries.filter(e => !e.notes?.includes('Auto-synced')).length,
         device: loadedEntries.filter(e => e.notes?.includes('Auto-synced')).length
       });
-      
+
       // Calculate myVagal Tone from all entries
       const score = getCurrentMyVagalTone();
       setMyVagalTone(score);
-      
+
       // NEW: Get sync status
-      const status = await getSyncStatus(userId);
+      const status = getSyncStatus();
       setLastSync(status.lastSync);
       setDeviceCount(status.deviceCount);
-      
-      if (status.errors && status.errors.length > 0) {
-        console.warn('[BiomarkerTab] Sync errors:', status.errors);
-        setSyncError('Some devices failed to sync');
-      }
-      
+
     } catch (error) {
       console.error('[BiomarkerTab] Failed to load data:', error);
       setSyncError('Failed to load biomarker data');
@@ -130,30 +125,26 @@ export default function BiomarkerTab() {
   const handleManualSync = async () => {
     setIsSyncing(true);
     setSyncError(null);
-    
+
     try {
       let userId = 'demo-user';
-      
+
       // Uncomment if using Supabase auth:
       // const { data: { user } } = await supabase.auth.getUser();
       // userId = user?.id || 'demo-user';
-      
+
       console.log('[BiomarkerTab] Manually syncing devices...');
-      
-      const newCount = await syncDevicesNow(userId);
-      
-      console.log('[BiomarkerTab] Sync complete:', newCount, 'new entries');
-      
+
+      await syncDevicesNow();
+
+      console.log('[BiomarkerTab] Sync complete');
+
       // Reload data to show new entries
       await loadData();
-      
-      // Show success message (you could add a toast notification here)
-      if (newCount > 0) {
-        alert(`✅ Synced ${newCount} new biomarker entries from devices!`);
-      } else {
-        alert('✅ All devices are up to date!');
-      }
-      
+
+      // Show success message
+      alert('✅ Device sync complete!');
+
     } catch (error) {
       console.error('[BiomarkerTab] Sync failed:', error);
       setSyncError('Device sync failed. Please try again.');
@@ -167,14 +158,14 @@ export default function BiomarkerTab() {
   useEffect(() => {
     loadData();
   }, []);
-  
+
   // NEW: Auto-refresh every 5 minutes to catch new device data
   useEffect(() => {
     const interval = setInterval(() => {
       console.log('[BiomarkerTab] Auto-refreshing device data...');
       loadData();
     }, 5 * 60 * 1000); // 5 minutes
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -182,7 +173,7 @@ export default function BiomarkerTab() {
   const filteredBiomarkers = BIOMARKER_DATABASE.filter(biomarker => {
     const matchesCategory = selectedCategory === 'all' || biomarker.category === selectedCategory;
     const matchesSearch = biomarker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         biomarker.description.toLowerCase().includes(searchQuery.toLowerCase());
+      biomarker.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -235,7 +226,7 @@ export default function BiomarkerTab() {
             <h1 className="text-4xl font-bold text-white mb-2">Biomarker Tracking</h1>
             <p className="text-purple-200">Track 24 biomarkers across 6 categories</p>
           </div>
-          
+
           {/* myVagal Tone Score + Sync Status */}
           <div className="flex gap-4">
             {/* Sync Status */}
@@ -263,7 +254,7 @@ export default function BiomarkerTab() {
                 </div>
               </div>
             )}
-            
+
             {/* myVagal Tone Score */}
             {myVagalTone && (
               <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
@@ -279,7 +270,7 @@ export default function BiomarkerTab() {
             )}
           </div>
         </div>
-        
+
         {/* Sync Error */}
         {syncError && (
           <div className="mt-4 bg-red-500/20 border border-red-400/30 rounded-xl p-4 text-red-300">
@@ -305,16 +296,15 @@ export default function BiomarkerTab() {
             <Filter className="w-5 h-5" />
             Filter by Category
           </h3>
-          
+
           <div className="flex flex-wrap gap-3">
             {/* All Categories */}
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                selectedCategory === 'all'
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${selectedCategory === 'all'
                   ? 'bg-cyan-500 text-white'
                   : 'bg-white/10 text-white/70 hover:bg-white/20'
-              }`}
+                }`}
             >
               All (24)
             </button>
@@ -323,16 +313,15 @@ export default function BiomarkerTab() {
             {getAllCategories().map(category => {
               const info = getCategoryInfo(category);
               const count = getCategoryCount(category);
-              
+
               return (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
-                    selectedCategory === category
+                  className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${selectedCategory === category
                       ? 'bg-cyan-500 text-white'
                       : 'bg-white/10 text-white/70 hover:bg-white/20'
-                  }`}
+                    }`}
                 >
                   <span>{info.icon}</span>
                   <span>{info.name}</span>
@@ -383,7 +372,7 @@ export default function BiomarkerTab() {
                       </p>
                     </div>
                   </div>
-                  
+
                   {/* Add Data Button */}
                   <button
                     onClick={() => handleAddData(biomarker)}
@@ -435,7 +424,7 @@ export default function BiomarkerTab() {
                   >
                     Add Data
                   </button>
-                  
+
                   {hasData && (
                     <button
                       onClick={() => handleViewTrend(biomarker)}
@@ -466,7 +455,7 @@ export default function BiomarkerTab() {
       )}
 
       {/* MODALS */}
-      
+
       {/* Entry Modal */}
       {entryModalOpen && selectedBiomarker && (
         <BiomarkerEntryModal
@@ -502,7 +491,7 @@ export default function BiomarkerTab() {
  */
 function formatTimeSince(date: Date): string {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-  
+
   if (seconds < 60) return 'just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;

@@ -1,15 +1,78 @@
 'use client'
 
+import HelpMenu from './components/shared/HelpMenu'
+
+// ============================================================================
+// TYPE IMPORTS
+// ============================================================================
 import { InterventionLog } from './types/intervention.types';
+
+// ============================================================================
+// COMPONENT IMPORTS
+// ============================================================================
 import InterventionsTab from './InterventionsTab';
 import AnalyticsTab from './AnalyticsTab';
+import SettingsTab from './SettingsTab';
+import SocialTab from './SocialTab';
+import TrendChart from './components/TrendChart';
+
+// ============================================================================
+// REACT
+// ============================================================================
 import React, { useState, useEffect } from 'react';
-import { Heart, Activity, Thermometer, Droplets, Brain, Smartphone, Watch, Headphones, Zap, Plus, X, Play, Pause, BarChart3, TrendingUp, Award, Clock, Target, CheckCircle, Beaker, MessageCircle, Calendar, AlertCircle, Lightbulb, Settings, Shield, Info, ExternalLink, Mic, MicOff, Share2, Eye, Glasses, Users, Sparkles, Sun, Moon, Wind, Volume2, VolumeX, Battery, Wifi, Camera, Maximize2, Minimize2, ShoppingCart, TrendingDown, Zap as Lightning, BookOpen, DollarSign, Package } from 'lucide-react';
+
+// ============================================================================
+// NEW TAB COMPONENTS (From Integration)
+// ============================================================================
+import DeviceConnectionTab from './components/devices/DeviceConnectionTab';
+import PredictiveAnalyticsTab from './components/predictions/PredictiveAnalyticsTab';
+import GeneticUploadTab from './components/genetic/GeneticUploadTab';
+
+// ============================================================================
+// LUCIDE ICONS - Single import for PredictionIcon alias
+// ============================================================================
+import { TrendingUp as PredictionIcon } from 'lucide-react';
+
+// ============================================================================
+// LUCIDE ICONS - Main import (includes Shield, Wifi, and everything else)
+// ============================================================================
+import {
+  Heart, Activity, Thermometer, Droplets, Brain, Smartphone, Watch,
+  Headphones, Zap, Plus, X, Play, Pause, BarChart3, TrendingUp, Award,
+  Clock, Target, CheckCircle, Beaker, MessageCircle, Calendar, AlertCircle,
+  Lightbulb, Settings, Shield, Info, ExternalLink, Mic, MicOff, Share2,
+  Eye, Glasses, Users, Sparkles, Sun, Moon, Wind, Volume2, VolumeX,
+  Battery, Wifi, Camera, Maximize2, Minimize2, ShoppingCart, TrendingDown,
+  Zap as Lightning, BookOpen, DollarSign, Package, Minus
+} from 'lucide-react';
+
+// ============================================================================
+// BIOMARKER COMPONENTS
+// ============================================================================
 import BiomarkerTab from './components/biomarkers/BiomarkerTab';
 import { FlaskConical } from 'lucide-react';
+
+// ============================================================================
+// SERVICES
+// ============================================================================
 import { getCurrentMyVagalTone } from './services/storageService';
-import SettingsTab from './SettingsTab'
+
+// ============================================================================
+// MARKETPLACE
+// ============================================================================
 import MarketplaceTab from './components/marketplace/MarketplaceTab';
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+interface Metric {
+  value: number | string;
+  enabled: boolean;
+  source: 'device' | 'lab';
+  confidence: number;
+  timestamp?: Date;
+}
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -95,6 +158,18 @@ interface PredictiveInsight {
   potential_improvement: number;
 }
 
+interface BreathingPattern {
+  id: 'box' | 'resonance' | '478' | 'coherence';
+  name: string;
+  description: string;
+  inhale: number;
+  hold: number;
+  exhale: number;
+  holdAfter: number;
+  cycles: number;
+  effectiveness: number;
+}
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -108,6 +183,7 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
   // Core States
   const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
   const [vagalToneScore, setVagalToneScore] = useState<number>(0);
+  const [previousScore, setPreviousScore] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [demoMode, setDemoMode] = useState<boolean>(false);
 
@@ -126,20 +202,117 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
   const [claudeRecommendation, setClaudeRecommendation] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [voiceActive, setVoiceActive] = useState<boolean>(false);
+  const [voiceGuidance, setVoiceGuidance] = useState<boolean>(false);
   const [arMode, setArMode] = useState<boolean>(false);
   const [socialMode, setSocialMode] = useState<boolean>(false);
   const [aiCoachActive, setAiCoachActive] = useState<boolean>(true);
   const [breathingExercise, setBreathingExercise] = useState<boolean>(false);
+  const [breathingPattern, setBreathingPattern] = useState<'box' | 'resonance' | '478' | 'coherence'>('box');
+  const [breathingPhase, setBreathingPhase] = useState<'inhale' | 'hold' | 'exhale' | 'holdAfter'>('inhale');
   const [interventionLogs, setInterventionLogs] = useState<InterventionLog[]>([]);
   const [batteryLevel, setBatteryLevel] = useState<number>(87);
   const [isConnected, setIsConnected] = useState<boolean>(true);
   const [floatingWidget, setFloatingWidget] = useState<boolean>(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState<boolean>(false);
 
+  // Speech synthesis helper
+  const speak = (text: string) => {
+    if ('speechSynthesis' in window && voiceGuidance) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // ============================================================================
+  // STEP 3: ADD STATE FOR TREND DATA
+  // ============================================================================
+
+  // Add these state variables near the top of your component (around line 100)
+
+  const [trendData, setTrendData] = useState({
+    score: [
+      { date: 'Mon', score: 68 },
+      { date: 'Tue', score: 70 },
+      { date: 'Wed', score: 69 },
+      { date: 'Thu', score: 72 },
+      { date: 'Fri', score: 75 },
+      { date: 'Sat', score: 73 },
+      { date: 'Sun', score: 50 } // Will be updated with current score
+    ],
+    hrv: [
+      { date: 'Mon', hrv: 45 },
+      { date: 'Tue', hrv: 48 },
+      { date: 'Wed', hrv: 47 },
+      { date: 'Thu', hrv: 51 },
+      { date: 'Fri', hrv: 54 },
+      { date: 'Sat', hrv: 52 },
+      { date: 'Sun', hrv: 50 }
+    ],
+    sleep: [
+      { date: 'Mon', sleep: 72 },
+      { date: 'Tue', sleep: 75 },
+      { date: 'Wed', sleep: 70 },
+      { date: 'Thu', sleep: 78 },
+      { date: 'Fri', sleep: 80 },
+      { date: 'Sat', sleep: 76 },
+      { date: 'Sun', sleep: 75 }
+    ]
+  });
   // Social & Achievement States
   const [socialStreak, setSocialStreak] = useState<number>(7);
   const [achievements, setAchievements] = useState<string[]>([]);
   const [userLevel, setUserLevel] = useState<'free' | 'silver' | 'gold' | 'platinum'>('free');
+
+  // Breathing patterns
+  const breathingPatterns: Record<string, BreathingPattern> = {
+    box: {
+      id: 'box',
+      name: 'Box Breathing',
+      description: 'Navy SEAL technique - equal intervals',
+      inhale: 4,
+      hold: 4,
+      exhale: 4,
+      holdAfter: 4,
+      cycles: 5,
+      effectiveness: 85
+    },
+    resonance: {
+      id: 'resonance',
+      name: 'Resonance Breathing',
+      description: 'Optimal HRV enhancement - 5.5 breaths/min',
+      inhale: 5,
+      hold: 0,
+      exhale: 6,
+      holdAfter: 0,
+      cycles: 6,
+      effectiveness: 95
+    },
+    '478': {
+      id: '478',
+      name: '4-7-8 Breathing',
+      description: 'Dr. Weil method - rapid relaxation',
+      inhale: 4,
+      hold: 7,
+      exhale: 8,
+      holdAfter: 0,
+      cycles: 4,
+      effectiveness: 90
+    },
+    coherence: {
+      id: 'coherence',
+      name: 'Cardiac Coherence',
+      description: 'HeartMath technique - emotional balance',
+      inhale: 5,
+      hold: 0,
+      exhale: 5,
+      holdAfter: 0,
+      cycles: 10,
+      effectiveness: 92
+    }
+  };
 
   // Comprehensive Biomarker State
   const [metrics, setMetrics] = useState<Metrics>({
@@ -411,12 +584,68 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'ai', label: 'AI Insights', icon: Brain },
     { id: 'biomarkers', label: 'Biomarkers', icon: FlaskConical },
+    { id: 'devices', label: 'Devices', icon: Wifi },              // 🆕 ADD THIS
+    { id: 'predictions', label: 'Predictions', icon: PredictionIcon }, // 🆕 ADD THIS
+    { id: 'genetics', label: 'Genetics', icon: Shield },          // 🆕 ADD THIS
     { id: 'interventions', label: 'Interventions', icon: Activity },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
+    { id: 'social', label: 'Community', icon: Users },
     { id: 'plans', label: 'Plans', icon: Award }
-    // { id: 'biomarkers', label: 'Biomarkers', icon: Beaker }, // Add when ready
   ];
+
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
+
+  const getScoreColor = (score: number): string => {
+    if (score >= 80) return 'text-green-400';
+    if (score >= 60) return 'text-cyan-400';
+    if (score >= 40) return 'text-yellow-400';
+    return 'text-orange-400';
+  };
+
+  const getScoreBgColor = (score: number): string => {
+    if (score >= 80) return 'from-green-500/20 to-emerald-500/20';
+    if (score >= 60) return 'from-cyan-500/20 to-blue-500/20';
+    if (score >= 40) return 'from-yellow-500/20 to-orange-500/20';
+    return 'from-orange-500/20 to-red-500/20';
+  };
+
+  const getTrendIcon = () => {
+    const diff = Math.round(vagalToneScore) - Math.round(previousScore);
+    if (Math.abs(diff) < 1) return <Minus className="w-4 h-4" />;
+    if (diff > 0) return <TrendingUp className="w-4 h-4 text-green-400" />;
+    return <TrendingDown className="w-4 h-4 text-red-400" />;
+  };
+
+  const getStatusText = (score: number): string => {
+    if (score >= 80) return 'Elite Resilience';
+    if (score >= 70) return 'Optimal';
+    if (score >= 60) return 'Good';
+    if (score >= 50) return 'Fair';
+    if (score >= 40) return 'Needs Improvement';
+    return 'Critical - Intervention Required';
+  };
+
+  const getStatusColor = (score: number): string => {
+    if (score >= 80) return 'text-cyan-300';
+    if (score >= 70) return 'text-green-400';
+    if (score >= 60) return 'text-blue-400';
+    if (score >= 50) return 'text-yellow-400';
+    if (score >= 40) return 'text-orange-400';
+    return 'text-red-400';
+  };
+
+  const getRecommendationColor = (priority: string): string => {
+    switch (priority) {
+      case 'critical': return 'border-l-red-500 bg-red-50/10';
+      case 'high': return 'border-l-orange-500 bg-orange-50/10';
+      case 'medium': return 'border-l-blue-500 bg-blue-50/10';
+      case 'low': return 'border-l-green-500 bg-green-50/10';
+      default: return 'border-l-gray-500 bg-gray-50/10';
+    }
+  };
 
   // ============================================================================
   // VAGAL TONE CALCULATION
@@ -486,38 +715,6 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
 
     // Normalize and cap
     return Math.max(0, Math.min(100, score));
-  };
-
-  // ============================================================================
-  // HELPER FUNCTIONS
-  // ============================================================================
-
-  const getStatusText = (score: number): string => {
-    if (score >= 80) return 'Elite Resilience';
-    if (score >= 70) return 'Optimal';
-    if (score >= 60) return 'Good';
-    if (score >= 50) return 'Fair';
-    if (score >= 40) return 'Needs Improvement';
-    return 'Critical - Intervention Required';
-  };
-
-  const getStatusColor = (score: number): string => {
-    if (score >= 80) return 'text-cyan-300';
-    if (score >= 70) return 'text-green-400';
-    if (score >= 60) return 'text-blue-400';
-    if (score >= 50) return 'text-yellow-400';
-    if (score >= 40) return 'text-orange-400';
-    return 'text-red-400';
-  };
-
-  const getRecommendationColor = (priority: string): string => {
-    switch (priority) {
-      case 'critical': return 'border-l-red-500 bg-red-50/10';
-      case 'high': return 'border-l-orange-500 bg-orange-50/10';
-      case 'medium': return 'border-l-blue-500 bg-blue-50/10';
-      case 'low': return 'border-l-green-500 bg-green-50/10';
-      default: return 'border-l-gray-500 bg-gray-50/10';
-    }
   };
 
   // ============================================================================
@@ -793,13 +990,39 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
   // ============================================================================
 
   useEffect(() => {
+    // Update today's score in trend data
+    setTrendData(prev => ({
+      ...prev,
+      score: prev.score.map((d, idx) =>
+        idx === prev.score.length - 1
+          ? { ...d, score: Math.round(vagalToneScore) }
+          : d
+      ),
+      hrv: metrics.heartRateVariability.enabled
+        ? prev.hrv.map((d, idx) =>
+          idx === prev.hrv.length - 1
+            ? { ...d, hrv: Number(metrics.heartRateVariability.value) }
+            : d
+        )
+        : prev.hrv,
+      sleep: metrics.sleepQuality.enabled
+        ? prev.sleep.map((d, idx) =>
+          idx === prev.sleep.length - 1
+            ? { ...d, sleep: Number(metrics.sleepQuality.value) }
+            : d
+        )
+        : prev.sleep
+    }));
+  }, [vagalToneScore, metrics]);
+
+  useEffect(() => {
     // Check for biomarker data first
     const biomarkerScore = getCurrentMyVagalTone();
 
     // Only use demo calculation if NO biomarker data exists at all
     if (!biomarkerScore) {
       const score = calculateVagalTone();
-      setVagalToneScore(score);
+      setVagalToneScore(Math.round(score));
     }
 
     // Generate AI insights when score changes
@@ -811,16 +1034,17 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
   }, [metrics, breathingExercise, arMode, selectedDevices]);
 
   useEffect(() => {
-    // Refresh score every 5 seconds to sync with biomarker updates
+    // Refresh score every 3 seconds to sync with biomarker updates
     const interval = setInterval(() => {
       const biomarkerScore = getCurrentMyVagalTone();
       if (biomarkerScore) {
-        setVagalToneScore(biomarkerScore.score);
+        setPreviousScore(vagalToneScore);
+        setVagalToneScore(Math.round(biomarkerScore.score));
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [vagalToneScore]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -829,6 +1053,82 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Voice-guided breathing exercise
+  useEffect(() => {
+    if (!breathingExercise || !voiceGuidance) return;
+
+    const pattern = breathingPatterns[breathingPattern];
+    let cycleCount = 0;
+    const timeouts: NodeJS.Timeout[] = [];
+
+    const runCycle = () => {
+      if (cycleCount >= pattern.cycles) {
+        setBreathingExercise(false);
+        speak('Breathing exercise complete. Well done!');
+        return;
+      }
+
+      // Inhale phase
+      setBreathingPhase('inhale');
+      speak(`Inhale for ${pattern.inhale} seconds`);
+
+      const timeout1 = setTimeout(() => {
+        // Hold phase (if applicable)
+        if (pattern.hold > 0) {
+          setBreathingPhase('hold');
+          speak(`Hold for ${pattern.hold} seconds`);
+
+          const timeout2 = setTimeout(() => {
+            // Exhale phase
+            setBreathingPhase('exhale');
+            speak(`Exhale for ${pattern.exhale} seconds`);
+
+            const timeout3 = setTimeout(() => {
+              // Hold after exhale (if applicable)
+              if (pattern.holdAfter > 0) {
+                setBreathingPhase('holdAfter');
+                speak(`Hold for ${pattern.holdAfter} seconds`);
+
+                const timeout4 = setTimeout(() => {
+                  cycleCount++;
+                  runCycle();
+                }, pattern.holdAfter * 1000);
+                timeouts.push(timeout4);
+              } else {
+                cycleCount++;
+                runCycle();
+              }
+            }, pattern.exhale * 1000);
+            timeouts.push(timeout3);
+          }, pattern.hold * 1000);
+          timeouts.push(timeout2);
+        } else {
+          // No hold - go straight to exhale
+          setBreathingPhase('exhale');
+          speak(`Exhale for ${pattern.exhale} seconds`);
+
+          const timeout2 = setTimeout(() => {
+            cycleCount++;
+            runCycle();
+          }, pattern.exhale * 1000);
+          timeouts.push(timeout2);
+        }
+      }, pattern.inhale * 1000);
+      timeouts.push(timeout1);
+    };
+
+    // Start the first cycle
+    speak(`Starting ${pattern.name}. Let's begin.`);
+    const startTimeout = setTimeout(runCycle, 2000);
+    timeouts.push(startTimeout);
+
+    return () => {
+      // Clear all timeouts when component unmounts or exercise stops
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      window.speechSynthesis.cancel();
+    };
+  }, [breathingExercise, breathingPattern, voiceGuidance]);
 
   // ============================================================================
   // RENDER FUNCTIONS
@@ -840,28 +1140,135 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
       <div className="text-center mb-12">
         <div className="relative">
           <div className={`text-9xl font-bold ${getStatusColor(vagalToneScore)} mb-4 transition-all ${breathingExercise ? 'animate-pulse' : ''}`}>
-            {vagalToneScore.toFixed(1)}
+            {Math.round(vagalToneScore)}
           </div>
           <div className="text-3xl text-white/80 mb-2">{getStatusText(vagalToneScore)}</div>
           <div className="text-lg text-cyan-300/70">myVagal Tone™ Score</div>
 
           {vagalToneScore > 0 && (
-            <div className="mt-6 flex justify-center space-x-4">
-              <button
-                onClick={() => setBreathingExercise(!breathingExercise)}
-                className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-500 px-6 py-3 rounded-full hover:from-blue-600 hover:to-purple-600 transition-all text-white font-medium"
-              >
-                <Wind className="w-5 h-5" />
-                <span>{breathingExercise ? 'Stop' : 'Start'} Breathing</span>
-              </button>
+            <div className="mt-6 space-y-4">
+              {/* Voice Guidance Toggle */}
+              <div className="flex justify-center mb-4">
+                <button
+                  onClick={() => {
+                    setVoiceGuidance(!voiceGuidance);
+                    if (!voiceGuidance) {
+                      speak('Voice guidance enabled');
+                    }
+                  }}
+                  className={`flex items-center space-x-2 px-6 py-3 rounded-full font-medium transition-all ${voiceGuidance
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                >
+                  <Volume2 className="w-5 h-5" />
+                  <span>{voiceGuidance ? 'Voice Guidance ON' : 'Voice Guidance OFF'}</span>
+                </button>
+              </div>
 
-              <button
-                onClick={() => setArMode(!arMode)}
-                className="flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 rounded-full hover:from-cyan-600 hover:to-blue-600 transition-all text-white font-medium"
-              >
-                <Eye className="w-5 h-5" />
-                <span>{arMode ? 'Disable' : 'Enable'} AR</span>
-              </button>
+              {/* Breathing Pattern Selector */}
+              <div className="flex justify-center gap-3 mb-4">
+                {Object.values(breathingPatterns).map((pattern) => (
+                  <button
+                    key={pattern.id}
+                    onClick={() => setBreathingPattern(pattern.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${breathingPattern === pattern.id
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                      : 'bg-white/10 text-white/70 hover:bg-white/20'
+                      }`}
+                  >
+                    {pattern.name}
+                    <div className="text-xs opacity-70">{pattern.effectiveness}% effective</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={() => {
+                    const newState = !breathingExercise;
+                    setBreathingExercise(newState);
+                    if (!newState) {
+                      // Stopping - cancel voice immediately
+                      window.speechSynthesis.cancel();
+                      speak('Breathing exercise stopped');
+                    } else if (voiceGuidance) {
+                      speak(`Starting ${breathingPatterns[breathingPattern].name}`);
+                    }
+                  }}
+                  className={`flex items-center space-x-2 px-6 py-3 rounded-full font-medium transition-all ${breathingExercise
+                    ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600'
+                    } text-white`}
+                >
+                  {breathingExercise ? (
+                    <>
+                      <X className="w-5 h-5" />
+                      <span>Stop Exercise</span>
+                    </>
+                  ) : (
+                    <>
+                      <Wind className="w-5 h-5" />
+                      <span>Start {breathingPatterns[breathingPattern].name}</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setArMode(!arMode)}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 rounded-full hover:from-cyan-600 hover:to-blue-600 transition-all text-white font-medium"
+                >
+                  <Eye className="w-5 h-5" />
+                  <span>{arMode ? 'Disable' : 'Enable'} AR</span>
+                </button>
+              </div>
+
+              {/* Pattern Info */}
+              {breathingExercise && (
+                <div className="bg-blue-500/20 rounded-2xl p-6 border border-blue-400/30 max-w-2xl mx-auto">
+                  <h4 className="font-bold text-white mb-2">{breathingPatterns[breathingPattern].name}</h4>
+                  <p className="text-white/70 text-sm mb-4">{breathingPatterns[breathingPattern].description}</p>
+
+                  {/* Current Phase Indicator */}
+                  <div className="bg-white/10 rounded-xl p-4 mb-4">
+                    <div className="text-center">
+                      <div className={`text-3xl font-bold mb-2 ${breathingPhase === 'inhale' ? 'text-cyan-400' :
+                        breathingPhase === 'hold' ? 'text-purple-400' :
+                          breathingPhase === 'exhale' ? 'text-blue-400' :
+                            'text-green-400'
+                        }`}>
+                        {breathingPhase === 'inhale' ? '↑ INHALE' :
+                          breathingPhase === 'hold' ? '⊙ HOLD' :
+                            breathingPhase === 'exhale' ? '↓ EXHALE' :
+                              '⊙ HOLD'}
+                      </div>
+                      <div className="text-white/60 text-sm">Current Phase</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-cyan-400">{breathingPatterns[breathingPattern].inhale}s</div>
+                      <div className="text-xs text-white/60">Inhale</div>
+                    </div>
+                    {breathingPatterns[breathingPattern].hold > 0 && (
+                      <div>
+                        <div className="text-2xl font-bold text-purple-400">{breathingPatterns[breathingPattern].hold}s</div>
+                        <div className="text-xs text-white/60">Hold</div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-2xl font-bold text-blue-400">{breathingPatterns[breathingPattern].exhale}s</div>
+                      <div className="text-xs text-white/60">Exhale</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-400">{breathingPatterns[breathingPattern].cycles}</div>
+                      <div className="text-xs text-white/60">Cycles</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1017,7 +1424,7 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
           <Sparkles className="w-10 h-10 ml-4 text-yellow-400" />
         </h2>
         <p className="text-2xl text-cyan-300/80">
-          Evidence-based protocols personalized to your myVagal Tone™ score of {vagalToneScore.toFixed(1)}
+          Evidence-based protocols personalized to your myVagal Tone™ score of {Math.round(vagalToneScore)}
         </p>
       </div>
 
@@ -1118,148 +1525,6 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
     </div>
   );
 
-  const renderMarketplace = () => (
-    <div className="p-8 space-y-8">
-      <div className="text-center mb-12">
-        <h2 className="text-5xl font-bold text-white mb-4 flex items-center justify-center">
-          <ShoppingCart className="w-12 h-12 mr-4 text-cyan-300" />
-          VagalSync Marketplace
-          <Sparkles className="w-10 h-10 ml-4 text-yellow-400" />
-        </h2>
-        <p className="text-2xl text-cyan-300/80">
-          Evidence-based devices and tools to optimize your wellness journey
-        </p>
-      </div>
-
-      {/* AI Shopping Assistant */}
-      <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-3xl p-8 border border-purple-400/30 backdrop-blur-xl">
-        <div className="flex items-start space-x-6">
-          <div className="bg-purple-600 p-4 rounded-full">
-            <Brain className="w-8 h-8 text-white" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-white mb-4 text-2xl flex items-center">
-              AI Shopping Consultant
-              <Sparkles className="w-6 h-6 ml-2 text-yellow-400" />
-            </h3>
-            <div className="bg-white/10 rounded-2xl p-6">
-              <p className="text-white mb-4 text-lg">
-                <strong>Your Current myVagal Tone™: {vagalToneScore.toFixed(1)}/100</strong>
-              </p>
-              <p className="text-purple-200 text-lg leading-relaxed">
-                {vagalToneScore < 50 ? (
-                  <>
-                    🚨 <strong>Critical Protocol:</strong> Immediate intervention recommended with <strong>Pulsetto VNS</strong> ($269) for rapid stress relief, plus comprehensive lab testing. Expected improvement: <strong>+15-25 points</strong> in 2-4 weeks. ROI: 500-800% in productivity & health savings.
-                  </>
-                ) : vagalToneScore < 70 ? (
-                  <>
-                    ⚡ <strong>Optimization Stack:</strong> <strong>Apollo Neuro</strong> ($349) + <strong>Oura Ring</strong> ($299) for comprehensive daily tracking and neuromodulation. Predicted optimal range achievement: 3-5 weeks. ROI: 300-500%.
-                  </>
-                ) : (
-                  <>
-                    🏆 <strong>Elite Maintenance:</strong> Focus on advanced monitoring and fine-tuning. Consider <strong>AR smart glasses</strong> for real-time biofeedback and social sharing to maintain excellence. ROI: 200-300% in sustained performance.
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Marketplace Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white/10 rounded-xl p-6 text-center backdrop-blur">
-          <div className="text-4xl font-bold text-cyan-400 mb-2">15.8x</div>
-          <div className="text-white/80">Average ROI in productivity & health savings</div>
-        </div>
-        <div className="bg-white/10 rounded-xl p-6 text-center backdrop-blur">
-          <div className="text-4xl font-bold text-cyan-400 mb-2">32 pts</div>
-          <div className="text-white/80">Average myVagal Tone improvement in 90 days</div>
-        </div>
-        <div className="bg-white/10 rounded-xl p-6 text-center backdrop-blur">
-          <div className="text-4xl font-bold text-purple-400 mb-2">87%</div>
-          <div className="text-white/80">Users report better stress management</div>
-        </div>
-      </div>
-
-      {/* Marketplace Grid */}
-      {marketplaceItems.length === 0 ? (
-        <div className="bg-white/10 rounded-3xl p-12 text-center backdrop-blur-xl border border-white/20">
-          <Package className="w-20 h-20 mx-auto mb-6 text-purple-400" />
-          <h3 className="text-2xl font-bold text-white mb-4">Marketplace Coming Soon</h3>
-          <p className="text-white/70 text-lg mb-6">
-            Enable demo mode to preview community-driven marketplace features
-          </p>
-          <button
-            onClick={enableDemoMode}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-4 rounded-full text-white font-bold hover:from-purple-700 hover:to-blue-700 transition-all"
-          >
-            Enable Demo Mode
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {marketplaceItems
-            .filter(item => marketplaceFilter === 'all' || item.category === marketplaceFilter)
-            .map(item => (
-              <div
-                key={item.id}
-                className="bg-gradient-to-br from-gray-900 to-purple-900 rounded-2xl p-6 border border-purple-400/30 hover:border-purple-400/60 transition-all cursor-pointer group hover:scale-[1.02]"
-              >
-                <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl h-48 mb-4 flex items-center justify-center">
-                  <Camera className="w-12 h-12 text-white/50" />
-                </div>
-
-                <h3 className="font-bold text-white text-xl mb-2 group-hover:text-cyan-300 transition-colors">
-                  {item.name}
-                </h3>
-
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`px-3 py-1 rounded-full text-sm font-bold ${item.condition === 'new' ? 'bg-green-500 text-white' :
-                    item.condition === 'refurbished' ? 'bg-blue-500 text-white' :
-                      'bg-gray-500 text-white'
-                    }`}>
-                    {item.condition.toUpperCase()}
-                  </span>
-                  <span className="text-2xl font-bold text-white">${item.price}</span>
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-white/70">Vagal Impact:</span>
-                    <span className="font-bold text-cyan-400">{item.vagal_impact_score}/100</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-white/70">Seller Rating:</span>
-                    <span className="font-bold text-yellow-400">{item.seller_rating}/5.0</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-white/70">Reviews:</span>
-                    <span className="font-bold text-white">{item.user_reviews}</span>
-                  </div>
-                </div>
-
-                {item.effectiveness_data && (
-                  <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-3 mb-4">
-                    <div className="text-green-300 font-bold text-sm mb-1">
-                      +{item.effectiveness_data.avg_improvement} pts Average Improvement
-                    </div>
-                    <div className="text-green-200 text-xs">
-                      Based on {item.effectiveness_data.sample_size} users
-                    </div>
-                  </div>
-                )}
-
-                <button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition-all">
-                  View Details
-                </button>
-              </div>
-            ))}
-        </div>
-      )}
-    </div>
-  );
-
   const renderSubscriptionPlans = () => (
     <div className="p-8">
       <div className="text-center mb-12">
@@ -1272,86 +1537,206 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-7xl mx-auto">
-        {/* Free Plan */}
-        <div className="bg-white/10 rounded-2xl p-8 backdrop-blur border border-white/20">
-          <h4 className="font-bold mb-4 text-xl text-white">Free</h4>
-          <p className="text-4xl font-bold mb-6 text-white">$0<span className="text-lg font-normal">/month</span></p>
+        {/* FREE - Get Started */}
+        <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl p-8 backdrop-blur border border-gray-600/30">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-bold text-xl text-white">Free</h4>
+            <span className="px-3 py-1 bg-gray-600/30 rounded-full text-xs font-bold text-white">
+              STARTER
+            </span>
+          </div>
+          <p className="text-5xl font-bold mb-2 text-white">$0</p>
+          <p className="text-white/60 text-sm mb-6">Forever free</p>
           <ul className="space-y-3 text-white/90 mb-8 text-sm">
-            <li>• Basic myVagal Tone™ scoring</li>
-            <li>• 3 device connections</li>
-            <li>• Limited biomarker tracking</li>
-            <li>• Community support</li>
-            <li>• Basic wellness tips</li>
+            <li className="flex items-start">
+              <span className="text-green-400 mr-2 font-bold">✓</span>
+              <span>Manual biomarker entry</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-green-400 mr-2 font-bold">✓</span>
+              <span>Basic myVagal Tone™</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-green-400 mr-2 font-bold">✓</span>
+              <span>7-day history</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-green-400 mr-2 font-bold">✓</span>
+              <span>Community access</span>
+            </li>
+            <li className="flex items-start opacity-50">
+              <span className="text-gray-500 mr-2 font-bold">✗</span>
+              <span>No device auto-sync</span>
+            </li>
+            <li className="flex items-start opacity-50">
+              <span className="text-gray-500 mr-2 font-bold">✗</span>
+              <span>No predictions</span>
+            </li>
           </ul>
-          <button className="w-full bg-white/20 text-white py-4 rounded-xl font-medium hover:bg-white/30 transition-colors">
+          <button className="w-full bg-white/10 text-white py-3 rounded-xl font-medium hover:bg-white/20 transition-colors border border-white/20">
             Current Plan
           </button>
         </div>
 
-        {/* Silver Plan */}
-        <div className="bg-white/10 rounded-2xl p-8 backdrop-blur border border-white/20">
-          <h4 className="font-bold mb-4 text-xl text-white">Silver</h4>
-          <p className="text-4xl font-bold mb-6 text-white">$49<span className="text-lg font-normal">/month</span></p>
-          <ul className="space-y-3 text-white/90 mb-8 text-sm">
-            <li>• Everything in Free</li>
-            <li>• Unlimited device connections</li>
-            <li>• Full biomarker tracking</li>
-            <li>• AI-powered recommendations</li>
-            <li>• Biological window detection</li>
-            <li>• Email support</li>
+        {/* SILVER - Most Popular */}
+        <div className="bg-gradient-to-br from-blue-800/50 to-cyan-900/50 rounded-2xl p-8 backdrop-blur border-2 border-cyan-400/50 relative transform md:scale-105 shadow-2xl">
+          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full text-xs font-bold text-white shadow-lg">
+            MOST POPULAR
+          </div>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-bold text-2xl text-white">Silver</h4>
+            <span className="px-3 py-1 bg-cyan-500/30 rounded-full text-xs font-bold text-white">
+              BEST VALUE
+            </span>
+          </div>
+          <p className="text-5xl font-bold mb-2 text-white">$49</p>
+          <p className="text-cyan-300 text-sm mb-6">Per month</p>
+          <ul className="space-y-3 text-white/95 mb-8 text-sm">
+            <li className="flex items-start">
+              <span className="text-cyan-400 mr-2 font-bold text-lg">✓</span>
+              <span><strong>Everything in Free</strong></span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-cyan-400 mr-2 font-bold text-lg">✓</span>
+              <span><strong>Auto-sync</strong> all devices</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-cyan-400 mr-2 font-bold text-lg">✓</span>
+              <span><strong>24-hour predictions</strong></span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-cyan-400 mr-2 font-bold text-lg">✓</span>
+              <span><strong>Optimal timing</strong> alerts</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-cyan-400 mr-2 font-bold text-lg">✓</span>
+              <span>Unlimited history</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-cyan-400 mr-2 font-bold text-lg">✓</span>
+              <span>Priority support</span>
+            </li>
+            <li className="flex items-start opacity-50">
+              <span className="text-gray-400 mr-2 font-bold">✗</span>
+              <span>No genetic insights</span>
+            </li>
           </ul>
           <button
-            onClick={() => alert('Stripe checkout coming soon! Silver: $49/month')}
-            className="w-full bg-cyan-500 text-white py-4 rounded-xl font-medium hover:bg-cyan-600 transition-colors"
+            onClick={() => alert('Stripe checkout: $49/month')}
+            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white py-4 rounded-xl font-bold hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg"
           >
             Upgrade to Silver
           </button>
+          <p className="text-center text-cyan-300/80 text-xs mt-3">
+            Cancel anytime • 30-day money-back guarantee
+          </p>
         </div>
 
-        {/* Gold Plan */}
-        <div className="bg-gradient-to-br from-yellow-600/20 to-orange-600/20 rounded-2xl p-8 backdrop-blur border-2 border-yellow-500/50 transform scale-105">
+        {/* GOLD - Professional */}
+        <div className="bg-gradient-to-br from-yellow-800/40 to-orange-900/40 rounded-2xl p-8 backdrop-blur border border-yellow-500/30">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-bold text-xl text-white">Gold</h4>
-            <span className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold">POPULAR</span>
+            <span className="px-3 py-1 bg-yellow-500/30 rounded-full text-xs font-bold text-white">
+              ADVANCED
+            </span>
           </div>
-          <p className="text-4xl font-bold mb-6 text-white">$99<span className="text-lg font-normal">/month</span></p>
+          <p className="text-5xl font-bold mb-2 text-white">$99</p>
+          <p className="text-yellow-300 text-sm mb-6">Per month</p>
           <ul className="space-y-3 text-white/90 mb-8 text-sm">
-            <li>• Everything in Silver</li>
-            <li>• Advanced AI coaching</li>
-            <li>• Predictive insights</li>
-            <li>• Marketplace access</li>
-            <li>• Lab test integration</li>
-            <li>• Priority support</li>
-            <li>• AR features (beta)</li>
+            <li className="flex items-start">
+              <span className="text-yellow-400 mr-2 font-bold">✓</span>
+              <span><strong>Everything in Silver</strong></span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-yellow-400 mr-2 font-bold">✓</span>
+              <span><strong>Genetic insights</strong> (23andMe)</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-yellow-400 mr-2 font-bold">✓</span>
+              <span><strong>3-layer scoring</strong> (Bio/Gene/Epi)</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-yellow-400 mr-2 font-bold">✓</span>
+              <span>Advanced analytics</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-yellow-400 mr-2 font-bold">✓</span>
+              <span>Custom protocols</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-yellow-400 mr-2 font-bold">✓</span>
+              <span>API access</span>
+            </li>
+            <li className="flex items-start opacity-50">
+              <span className="text-gray-400 mr-2 font-bold">✗</span>
+              <span>No 1-on-1 coaching</span>
+            </li>
           </ul>
           <button
-            onClick={() => alert('Stripe checkout coming soon! Gold: $99/month')}
-            className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white py-4 rounded-xl font-bold hover:from-yellow-500 hover:to-orange-600 transition-all"
+            onClick={() => alert('Stripe checkout: $99/month')}
+            className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-3 rounded-xl font-bold hover:from-yellow-600 hover:to-orange-600 transition-all"
           >
             Upgrade to Gold
           </button>
         </div>
 
-        {/* Platinum Plan */}
-        <div className="bg-white/10 rounded-2xl p-8 backdrop-blur border border-white/20">
-          <h4 className="font-bold mb-4 text-xl text-white">Platinum</h4>
-          <p className="text-4xl font-bold mb-6 text-white">$299<span className="text-lg font-normal">/month</span></p>
+        {/* PLATINUM - Ultimate */}
+        <div className="bg-gradient-to-br from-purple-800/40 to-pink-900/40 rounded-2xl p-8 backdrop-blur border border-purple-500/30">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-bold text-xl text-white">Platinum</h4>
+            <span className="px-3 py-1 bg-purple-500/30 rounded-full text-xs font-bold text-white">
+              ULTIMATE
+            </span>
+          </div>
+          <p className="text-5xl font-bold mb-2 text-white">$299</p>
+          <p className="text-purple-300 text-sm mb-6">Per month</p>
           <ul className="space-y-3 text-white/90 mb-8 text-sm">
-            <li>• Everything in Gold</li>
-            <li>• Personal AI coach</li>
-            <li>• Monthly lab test credits</li>
-            <li>• White-glove onboarding</li>
-            <li>• Device rental program</li>
-            <li>• 24/7 VIP support</li>
-            <li>• All beta features</li>
+            <li className="flex items-start">
+              <span className="text-purple-400 mr-2 font-bold">✓</span>
+              <span><strong>Everything in Gold</strong></span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-purple-400 mr-2 font-bold">✓</span>
+              <span><strong>1-on-1 expert coaching</strong></span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-purple-400 mr-2 font-bold">✓</span>
+              <span><strong>White-glove onboarding</strong></span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-purple-400 mr-2 font-bold">✓</span>
+              <span>Custom protocol design</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-purple-400 mr-2 font-bold">✓</span>
+              <span>Priority lab analysis</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-purple-400 mr-2 font-bold">✓</span>
+              <span>Quarterly health reviews</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-purple-400 mr-2 font-bold">✓</span>
+              <span>VIP support (24/7)</span>
+            </li>
           </ul>
           <button
-            onClick={() => alert('Stripe checkout coming soon! Platinum: $299/month\n\nIncludes: AI-Powered Biological Timing Optimizer!')}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all"
+            onClick={() => alert('Stripe checkout: $299/month - Premium coaching included!')}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all"
           >
             Upgrade to Platinum
           </button>
         </div>
+      </div>
+
+      {/* Value Proposition Footer */}
+      <div className="mt-12 text-center max-w-3xl mx-auto">
+        <p className="text-white/80 text-lg mb-4">
+          🎯 <strong className="text-cyan-300">87% of Silver users</strong> say VagalSync is their most valuable health tool
+        </p>
+        <p className="text-white/60 text-sm">
+          All plans include 30-day money-back guarantee • Cancel anytime • No contracts
+        </p>
       </div>
     </div>
   );
@@ -1377,6 +1762,26 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-4">
+            {/* myVagal Tone Score Badge - PERSISTENT */}
+            {vagalToneScore > 0 && (
+              <div className={`bg-gradient-to-r ${getScoreBgColor(vagalToneScore)} rounded-full px-4 py-2 border border-white/20 backdrop-blur cursor-pointer hover:scale-105 transition-all`}
+                onClick={() => setActiveTab('biomarkers')}
+                title="Click to view biomarker details">
+                <div className="flex items-center space-x-2">
+                  <Activity className={`w-5 h-5 ${getScoreColor(vagalToneScore)}`} />
+                  <div>
+                    <div className={`text-2xl font-bold ${getScoreColor(vagalToneScore)} leading-tight`}>
+                      {Math.round(vagalToneScore)}
+                    </div>
+                    <div className="text-xs text-white/60">myVagal Tone™</div>
+                  </div>
+                  <div className="ml-1">
+                    {getTrendIcon()}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Battery & Connection Status */}
             <div className="flex items-center space-x-3 text-white/70">
               <div className="flex items-center">
@@ -1394,6 +1799,12 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
               {voiceActive ? <Mic className="w-5 h-5 text-white" /> : <MicOff className="w-5 h-5 text-white" />}
             </button>
 
+            {/* ⭐ Help menu ⭐ */}
+            <HelpMenu
+              context={activeTab as any}
+              className="text-white/70 hover:text-white"
+            />
+
             {/* Settings */}
             <button
               onClick={() => setActiveTab('settings')}
@@ -1406,7 +1817,7 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-black/20 backdrop-blur-xl border-b border-white/10">
+      <div className="bg-black/20 backdrop-blur-xl border-b border-white/10 sticky top-[72px] z-40">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex space-x-1 overflow-x-auto">
             {navigationTabs.map((tab) => (
@@ -1428,20 +1839,167 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
-        {activeTab === 'dashboard' && renderDashboard()}
+        {activeTab === 'dashboard' && (
+          <>
+            {renderDashboard()}
+
+            {/* Trends Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              {/* 7-Day myVagal Tone Trend */}
+              <TrendChart
+                data={trendData.score}
+                metric="score"
+                title="7-Day myVagal Tone™ Trend"
+                showGrid={true}
+              />
+
+              {/* HRV Trend (if available) */}
+              {metrics.heartRateVariability.enabled ? (
+                <TrendChart
+                  data={trendData.hrv}
+                  metric="hrv"
+                  title="7-Day HRV Trend"
+                  showGrid={true}
+                />
+              ) : (
+                <TrendChart
+                  data={trendData.sleep}
+                  metric="sleep"
+                  title="7-Day Sleep Quality Trend"
+                  showGrid={true}
+                />
+              )}
+            </div>
+
+            {/* Weekly Summary Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {/* Weekly Average */}
+              <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-xl p-4 border border-blue-400/30 backdrop-blur">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-400"></div>
+                  <div className="text-sm text-gray-400">Weekly Avg</div>
+                </div>
+                <div className="text-3xl font-bold text-blue-400">
+                  {Math.round(
+                    trendData.score.reduce((sum, d) => sum + d.score, 0) /
+                    trendData.score.length
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">myVagal Tone™</div>
+              </div>
+
+              {/* Best Day */}
+              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl p-4 border border-green-400/30 backdrop-blur">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                  <div className="text-sm text-gray-400">Best Day</div>
+                </div>
+                <div className="text-3xl font-bold text-green-400">
+                  {Math.max(...trendData.score.map(d => d.score))}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">Peak Score</div>
+              </div>
+
+              {/* Weekly Improvement */}
+              <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl p-4 border border-purple-400/30 backdrop-blur">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3 h-3 rounded-full bg-purple-400"></div>
+                  <div className="text-sm text-gray-400">Improvement</div>
+                </div>
+                <div className="text-3xl font-bold text-purple-400">
+                  {Math.round(vagalToneScore - trendData.score[0].score) >= 0 ? '+' : ''}
+                  {Math.round(vagalToneScore - trendData.score[0].score)}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">vs. Monday</div>
+              </div>
+
+              {/* Current Streak */}
+              <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-xl p-4 border border-orange-400/30 backdrop-blur">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3 h-3 rounded-full bg-orange-400"></div>
+                  <div className="text-sm text-gray-400">Streak</div>
+                </div>
+                <div className="text-3xl font-bold text-orange-400">
+                  {socialStreak}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">days active</div>
+              </div>
+            </div>
+
+            {/* Progress Insights */}
+            <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-2xl p-6 border border-white/10 backdrop-blur mb-8">
+              <h3 className="text-xl font-bold text-white mb-4">📊 Weekly Insights</h3>
+              <div className="space-y-3">
+                {/* Trend Direction */}
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 mt-2"></div>
+                  <div>
+                    <div className="text-white font-medium">
+                      {Math.round(vagalToneScore - trendData.score[0].score) > 0
+                        ? '📈 Upward Trend'
+                        : Math.round(vagalToneScore - trendData.score[0].score) < 0
+                          ? '📉 Declining Trend'
+                          : '➡️ Stable Trend'}
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      Your score has {
+                        Math.round(vagalToneScore - trendData.score[0].score) > 0
+                          ? `improved by ${Math.round(vagalToneScore - trendData.score[0].score)} points`
+                          : Math.round(vagalToneScore - trendData.score[0].score) < 0
+                            ? `declined by ${Math.abs(Math.round(vagalToneScore - trendData.score[0].score))} points`
+                            : 'remained stable'
+                      } this week
+                    </div>
+                  </div>
+                </div>
+
+                {/* Consistency */}
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-green-400 mt-2"></div>
+                  <div>
+                    <div className="text-sm text-gray-400">
+                      {socialStreak >= 7
+                        ? `You've tracked for ${socialStreak} days straight!`
+                        : `Keep going! ${7 - socialStreak} more days for a weekly streak`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Next Goal */}
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-purple-400 mt-2"></div>
+                  <div>
+                    <div className="text-white font-medium">🎯 Next Milestone</div>
+                    <div className="text-sm text-gray-400">
+                      {vagalToneScore < 70
+                        ? `${Math.round(70 - vagalToneScore)} points to reach "Optimal" status`
+                        : vagalToneScore < 80
+                          ? `${Math.round(80 - vagalToneScore)} points to reach "Elite Resilience"`
+                          : `You've achieved Elite Resilience! Maintain this level.`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         {activeTab === 'ai' && renderAIRecommendations()}
+
         {activeTab === 'biomarkers' && <BiomarkerTab />}
+
         {activeTab === 'interventions' && (
           <InterventionsTab
             breathingExercise={breathingExercise}
             setBreathingExercise={setBreathingExercise}
             arMode={arMode}
             setArMode={setArMode}
-            vagalToneScore={vagalToneScore}
+            vagalToneScore={Math.round(vagalToneScore)}
             interventionLogs={interventionLogs}
             setInterventionLogs={setInterventionLogs}
           />
         )}
+
         {activeTab === 'analytics' && (
           <AnalyticsTab
             metrics={metrics}
@@ -1450,12 +2008,72 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
             socialStreak={socialStreak}
           />
         )}
+
         {activeTab === 'marketplace' && (
-          <MarketplaceTab />
+          marketplaceItems.length === 0 && !demoMode ? (
+            <div className="p-8">
+              <div className="text-center mb-12">
+                <h2 className="text-5xl font-bold text-white mb-4 flex items-center justify-center">
+                  <ShoppingCart className="w-12 h-12 mr-4 text-cyan-300" />
+                  VagalSync Marketplace
+                  <Sparkles className="w-10 h-10 ml-4 text-yellow-400" />
+                </h2>
+                <p className="text-2xl text-cyan-300/80">
+                  Evidence-based devices and tools to optimize your wellness journey
+                </p>
+              </div>
+
+              <div className="bg-white/10 rounded-3xl p-12 text-center backdrop-blur-xl border border-white/20">
+                <Package className="w-20 h-20 mx-auto mb-6 text-purple-400" />
+                <h3 className="text-2xl font-bold text-white mb-4">Marketplace Coming Soon</h3>
+                <p className="text-white/70 text-lg mb-6">
+                  Personalized product recommendations based on your biomarker data
+                </p>
+
+                <div className="bg-cyan-500/10 rounded-xl p-6 max-w-2xl mx-auto mb-6">
+                  <h4 className="font-bold text-cyan-300 mb-3">🔬 How It Works</h4>
+                  <ul className="text-left text-white/70 space-y-2">
+                    <li>• Add biomarker data to get personalized recommendations</li>
+                    <li>• AI analyzes your myVagal Tone™ score</li>
+                    <li>• See devices that can improve your specific biomarkers</li>
+                    <li>• Compare effectiveness data from real users</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={enableDemoMode}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-4 rounded-full text-white font-bold hover:from-purple-700 hover:to-blue-700 transition-all inline-flex items-center space-x-2"
+                >
+                  <Sparkles className="w-6 h-6" />
+                  <span>Enable Demo Mode</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <MarketplaceTab />
+          )
         )}
+
+        {activeTab === 'social' && (
+          <SocialTab
+            vagalToneScore={Math.round(vagalToneScore)}
+            socialStreak={socialStreak}
+            achievements={achievements}
+            interventionLogs={interventionLogs}
+            selectedDevices={selectedDevices}
+            userLevel={userLevel}
+          />
+        )}
+
+        {activeTab === 'devices' && <DeviceConnectionTab />}
+
+        {activeTab === 'predictions' && <PredictiveAnalyticsTab />}
+
+        {activeTab === 'genetics' && <GeneticUploadTab />}
+
         {activeTab === 'plans' && renderSubscriptionPlans()}
+
         {activeTab === 'settings' && <SettingsTab />}
-        {/* {activeTab === 'biomarkers' && <BiomarkersTab ... />} */}
       </div>
 
       {/* Floating Action Button */}
@@ -1490,12 +2108,10 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
                   View Plans
                 </button>
                 <button
-                  onClick={() => setActiveTab('plans')}
-                  data-tab="plans"
-                  className="..."
+                  onClick={() => setShowUpgradePrompt(false)}
+                  className="bg-white/10 text-white px-8 py-4 rounded-full font-bold hover:bg-white/20 transition-all"
                 >
-                  <Award /> {/* or whatever icon */}
-                  Plans
+                  Maybe Later
                 </button>
               </div>
             </div>
@@ -1535,8 +2151,8 @@ const VagalSyncV15UltimateWellnessApp: React.FC = () => {
           </div>
 
           <div className="border-t border-white/10 pt-8 text-center text-white/40 text-sm">
-            <p>© 2025 VagalSync, Inc. | 11 Filed Patents (605 Claims) | Not FDA Approved - Wellness Use Only</p>
-            <p className="mt-2">Version 15.0.0-ULTIMATE | Subscription-Based Platform | No NFTs, No Tokens, No Blockchain</p>
+            <p>© 2025 VagalSync, Inc. | 11 Patents Pending (605 Claims) | Not FDA Approved - Wellness Use Only</p>
+            <p className="mt-2">Version 15.0.0-ULTIMATE | Subscription-Based Platform</p>
           </div>
         </div>
       </div>

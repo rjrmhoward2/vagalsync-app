@@ -37,7 +37,7 @@ import {
 } from 'recharts';
 
 import { BiomarkerDefinition, BiomarkerEntry } from '../../types/biomarker.types';
-import { analyzeBiomarkerTrend, formatBiomarkerValue } from '../../utils/calculations';
+import { analyzeBiomarkerTrend, formatBiomarkerValue } from '../../utils/calculations.ts';
 
 // ============================================================================
 // PROPS INTERFACE

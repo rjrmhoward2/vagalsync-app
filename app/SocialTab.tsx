@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Users, Award, Share2, TrendingUp, Trophy, Star, Flame, Target, CheckCircle, Heart, Zap, Crown, Medal } from 'lucide-react';
+import { Users, Award, Share2, TrendingUp, Trophy, Star, Flame, Target, CheckCircle, Heart, Zap, Crown, Medal, Calendar } from 'lucide-react';
 
 interface SocialTabProps {
   vagalToneScore: number;

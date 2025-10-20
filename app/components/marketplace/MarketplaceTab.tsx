@@ -1,343 +1,231 @@
-/**
- * VagalSync V15.0 Ultimate - Marketplace Tab
- * Revenue Stream #10: Product Recommendations
- * 
- * Shows personalized product recommendations based on biomarker gaps
- */
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  ShoppingBag, 
-  TrendingUp, 
-  Filter,
-  DollarSign,
-  Sparkles,
-  AlertCircle,
-  CheckCircle,
-  RefreshCw
-} from 'lucide-react';
-import ProductCard from './ProductCard';
-import type { ProductRecommendation } from '../../../lib/middleware/marketplaceEngine';
-import { loadBiomarkerEntries } from '../../services/storageService';
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
+import React, { useState } from 'react';
+import { ShoppingCart, Sparkles, Settings, Package, Star, TrendingUp, ExternalLink, Filter } from 'lucide-react';
 
 export default function MarketplaceTab() {
-  
-  const [recommendations, setRecommendations] = useState<ProductRecommendation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const [totalGaps, setTotalGaps] = useState(0);
-  const [estimatedImpact, setEstimatedImpact] = useState(0);
-  
-  // Filters
-  const [priceRange, setPriceRange] = useState<'budget' | 'moderate' | 'premium'>('moderate');
-  const [showOnlyInBudget, setShowOnlyInBudget] = useState(false);
+  const [priceFilter, setPriceFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [budgetOnly, setBudgetOnly] = useState(false);
 
-  const userId = 'demo-user'; // TODO: Get from auth
-
-  // ==========================================================================
-  // LOAD RECOMMENDATIONS
-  // ==========================================================================
-
-  useEffect(() => {
-    loadRecommendations();
-  }, []);
-
-  const loadRecommendations = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Get user's biomarker entries
-      const entries = loadBiomarkerEntries();
-
-      // Fetch recommendations from API
-      const response = await fetch('/api/marketplace/recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          entries,
-          limit: 20,
-          preferences: {
-            priceRange,
-            dietary: {
-              vegan: false,
-              glutenFree: false
-            }
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch recommendations');
-      }
-
-      const data = await response.json();
-      
-      setRecommendations(data.recommendations || []);
-      setTotalGaps(data.totalGaps || 0);
-      setEstimatedImpact(data.estimatedImpact || 0);
-
-    } catch (err: any) {
-      console.error('[MarketplaceTab] Error:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  // Sample marketplace items
+  const marketplaceItems = [
+    {
+      id: 1,
+      name: 'Apollo Neuro',
+      category: 'Neuromodulation',
+      price: 349,
+      rating: 4.8,
+      reviews: 2847,
+      effectiveness: 94,
+      image: '🎧',
+      description: 'Wearable that uses gentle vibrations to improve HRV and reduce stress'
+    },
+    {
+      id: 2,
+      name: 'Muse S Headband',
+      category: 'Wearables',
+      price: 399,
+      rating: 4.6,
+      reviews: 1923,
+      effectiveness: 89,
+      image: '🎯',
+      description: 'Real-time EEG feedback for meditation and sleep tracking'
     }
-  };
+  ];
 
-  // ==========================================================================
-  // FILTERING
-  // ==========================================================================
-
-  const filteredRecommendations = showOnlyInBudget
-    ? recommendations.filter(r => r.inBudget)
-    : recommendations;
-
-  const groupedByPriority = {
-    critical: filteredRecommendations.filter(r => r.priority === 'critical'),
-    high: filteredRecommendations.filter(r => r.priority === 'high'),
-    medium: filteredRecommendations.filter(r => r.priority === 'medium'),
-    low: filteredRecommendations.filter(r => r.priority === 'low')
-  };
-
-  // ==========================================================================
-  // RENDER
-  // ==========================================================================
+  const filteredItems = marketplaceItems.filter(item => {
+    if (priceFilter !== 'all') {
+      if (priceFilter === 'budget' && item.price > 100) return false;
+      if (priceFilter === 'moderate' && (item.price < 25 || item.price > 75)) return false;
+      if (priceFilter === 'premium' && item.price < 300) return false;
+    }
+    if (categoryFilter !== 'all' && item.category.toLowerCase() !== categoryFilter) return false;
+    if (budgetOnly && item.price > 200) return false;
+    return true;
+  });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="p-8 space-y-8">
+      {/* Header */}
+      <div className="text-center mb-12">
+        <h2 className="text-5xl font-bold text-white mb-4 flex items-center justify-center">
+          <ShoppingCart className="w-12 h-12 mr-4 text-cyan-300" />
+          VagalSync Marketplace
+          <Sparkles className="w-10 h-10 ml-4 text-yellow-400" />
+        </h2>
+        <p className="text-2xl text-cyan-300/80">
+          Evidence-based devices and tools to optimize your wellness journey
+        </p>
+      </div>
+
+      {/* FILTERS SECTION - FIXED CONTRAST */}
+      <div className="bg-gradient-to-r from-gray-800/90 to-gray-900/90 rounded-3xl p-8 border border-gray-600/50 backdrop-blur-xl">
+        <h3 className="text-white text-xl font-bold mb-6 flex items-center">
+          <Filter className="w-6 h-6 mr-3 text-cyan-400" />
+          Filters
+        </h3>
         
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-3 bg-cyan-500/20 rounded-xl">
-              <ShoppingBag className="w-8 h-8 text-cyan-400" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">Marketplace</h1>
-              <p className="text-purple-300">
-                Personalized products to optimize your biomarkers
-              </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Price Range - FIXED */}
+          <div>
+            <label className="block text-white font-medium mb-3 text-base">
+              💰 Price Range
+            </label>
+            <select 
+              value={priceFilter}
+              onChange={(e) => setPriceFilter(e.target.value)}
+              className="w-full bg-gray-700 text-white border-2 border-gray-600 rounded-xl px-4 py-3 text-base font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 cursor-pointer hover:bg-gray-650 transition-colors"
+            >
+              <option value="all" className="bg-gray-700 text-white">All Prices</option>
+              <option value="budget" className="bg-gray-700 text-white">Budget ($0-$100)</option>
+              <option value="moderate" className="bg-gray-700 text-white">Moderate ($25-$75)</option>
+              <option value="premium" className="bg-gray-700 text-white">Premium ($300+)</option>
+            </select>
+          </div>
+
+          {/* Category - FIXED */}
+          <div>
+            <label className="block text-white font-medium mb-3 text-base">
+              📂 Category
+            </label>
+            <select 
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full bg-gray-700 text-white border-2 border-gray-600 rounded-xl px-4 py-3 text-base font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 cursor-pointer hover:bg-gray-650 transition-colors"
+            >
+              <option value="all" className="bg-gray-700 text-white">All Categories</option>
+              <option value="wearables" className="bg-gray-700 text-white">Wearables</option>
+              <option value="neuromodulation" className="bg-gray-700 text-white">Neuromodulation</option>
+              <option value="lab-testing" className="bg-gray-700 text-white">Lab Testing</option>
+              <option value="supplements" className="bg-gray-700 text-white">Supplements</option>
+            </select>
+          </div>
+
+          {/* Budget Toggle - FIXED */}
+          <div>
+            <label className="block text-white font-medium mb-3 text-base">
+              ✅ Budget Filter
+            </label>
+            <div className="flex items-center space-x-3 bg-gray-700 rounded-xl px-4 py-3 border-2 border-gray-600 hover:bg-gray-650 transition-colors">
+              <input 
+                type="checkbox"
+                id="budget-toggle"
+                checked={budgetOnly}
+                onChange={(e) => setBudgetOnly(e.target.checked)}
+                className="w-5 h-5 rounded border-gray-500 text-cyan-500 focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+              />
+              <label htmlFor="budget-toggle" className="text-white font-medium cursor-pointer flex-1">
+                Only show products in my budget
+              </label>
             </div>
           </div>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-cyan-400 border-t-transparent mb-4" />
-            <p className="text-purple-300">Analyzing your biomarkers...</p>
+        <div className="mt-6 flex items-center justify-between">
+          <button 
+            onClick={() => {
+              setPriceFilter('all');
+              setCategoryFilter('all');
+              setBudgetOnly(false);
+            }}
+            className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+          >
+            Clear All Filters
+          </button>
+          <div className="text-white/60 text-sm">
+            Showing {filteredItems.length} of {marketplaceItems.length} products
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Error State */}
-        {error && !loading && (
-          <div className="bg-red-500/20 border border-red-400/30 rounded-xl p-6 mb-6">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+      {/* Product Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredItems.map((item) => (
+          <div
+            key={item.id}
+            className="bg-white/10 rounded-2xl p-6 border border-white/20 hover:border-cyan-400/50 transition-all hover:scale-105 backdrop-blur-xl"
+          >
+            {/* Product Image/Icon */}
+            <div className="text-6xl mb-4 text-center">{item.image}</div>
+
+            {/* Product Info */}
+            <h3 className="text-xl font-bold text-white mb-2">{item.name}</h3>
+            <p className="text-cyan-400 text-sm mb-3">{item.category}</p>
+            <p className="text-white/70 text-sm mb-4">{item.description}</p>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-yellow-400 text-sm mb-1 flex items-center">
+                  <Star className="w-4 h-4 mr-1" />
+                  Rating
+                </div>
+                <div className="text-white font-bold">{item.rating}/5.0</div>
+                <div className="text-white/50 text-xs">{item.reviews} reviews</div>
+              </div>
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-green-400 text-sm mb-1 flex items-center">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  Effective
+                </div>
+                <div className="text-white font-bold">{item.effectiveness}%</div>
+                <div className="text-white/50 text-xs">User data</div>
+              </div>
+            </div>
+
+            {/* Price & CTA */}
+            <div className="flex items-center justify-between pt-4 border-t border-white/10">
               <div>
-                <h3 className="text-lg font-semibold text-red-300 mb-2">Error Loading Recommendations</h3>
-                <p className="text-red-200 mb-4">{error}</p>
-                <button
-                  onClick={loadRecommendations}
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Try Again
-                </button>
+                <div className="text-2xl font-bold text-cyan-400">${item.price}</div>
+                <div className="text-white/50 text-xs">One-time purchase</div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* No Recommendations State */}
-        {!loading && !error && recommendations.length === 0 && (
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-12 border border-white/20 text-center">
-            <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-3">All Biomarkers Optimal! 🎉</h2>
-            <p className="text-purple-300 mb-6 max-w-md mx-auto">
-              You don't have any biomarker deficiencies right now. Keep tracking to maintain your optimal health!
-            </p>
-            <button
-              onClick={loadRecommendations}
-              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-all inline-flex items-center gap-2"
-            >
-              <RefreshCw className="w-5 h-5" />
-              Refresh Recommendations
-            </button>
-          </div>
-        )}
-
-        {/* Recommendations */}
-        {!loading && !error && recommendations.length > 0 && (
-          <>
-            {/* Stats Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {/* Biomarker Gaps */}
-              <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 backdrop-blur-lg rounded-2xl p-6 border border-orange-400/30">
-                <div className="flex items-center gap-3 mb-2">
-                  <AlertCircle className="w-6 h-6 text-orange-400" />
-                  <h3 className="text-lg font-semibold text-white">Biomarker Gaps</h3>
-                </div>
-                <div className="text-4xl font-bold text-orange-400">{totalGaps}</div>
-                <p className="text-sm text-orange-300 mt-1">
-                  Biomarkers needing optimization
-                </p>
-              </div>
-
-              {/* Potential Impact */}
-              <div className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 backdrop-blur-lg rounded-2xl p-6 border border-cyan-400/30">
-                <div className="flex items-center gap-3 mb-2">
-                  <TrendingUp className="w-6 h-6 text-cyan-400" />
-                  <h3 className="text-lg font-semibold text-white">Potential Impact</h3>
-                </div>
-                <div className="text-4xl font-bold text-cyan-400">+{estimatedImpact}</div>
-                <p className="text-sm text-cyan-300 mt-1">
-                  myVagal Tone™ points
-                </p>
-              </div>
-
-              {/* Products Found */}
-              <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-lg rounded-2xl p-6 border border-purple-400/30">
-                <div className="flex items-center gap-3 mb-2">
-                  <Sparkles className="w-6 h-6 text-purple-400" />
-                  <h3 className="text-lg font-semibold text-white">Recommendations</h3>
-                </div>
-                <div className="text-4xl font-bold text-purple-400">{recommendations.length}</div>
-                <p className="text-sm text-purple-300 mt-1">
-                  Products matched to your needs
-                </p>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <Filter className="w-5 h-5 text-purple-400" />
-                <h3 className="text-lg font-semibold text-white">Filters</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Price Range */}
-                <div>
-                  <label className="text-sm text-purple-300 mb-2 block">Price Range</label>
-                  <select
-                    value={priceRange}
-                    onChange={(e) => setPriceRange(e.target.value as any)}
-                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-400"
-                  >
-                    <option value="budget">Budget ($0-$25)</option>
-                    <option value="moderate">Moderate ($25-$75)</option>
-                    <option value="premium">Premium ($75+)</option>
-                  </select>
-                </div>
-
-                {/* Show Only In Budget */}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={showOnlyInBudget}
-                    onChange={(e) => setShowOnlyInBudget(e.target.checked)}
-                    className="w-5 h-5 rounded border-white/20 bg-white/10 text-cyan-500 focus:ring-cyan-400"
-                  />
-                  <label className="text-sm text-purple-300">
-                    Only show products in my budget
-                  </label>
-                </div>
-              </div>
-
-              <button
-                onClick={loadRecommendations}
-                className="mt-4 bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Apply Filters
+              <button className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-full font-bold hover:from-cyan-600 hover:to-blue-600 transition-all flex items-center space-x-2">
+                <span>View</span>
+                <ExternalLink className="w-4 h-4" />
               </button>
             </div>
+          </div>
+        ))}
+      </div>
 
-            {/* Product Grid by Priority */}
-            {groupedByPriority.critical.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  🔴 Critical Priority
-                  <span className="text-sm text-purple-300 font-normal">
-                    ({groupedByPriority.critical.length} products)
-                  </span>
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {groupedByPriority.critical.map(rec => (
-                    <ProductCard
-                      key={rec.product.id}
-                      recommendation={rec}
-                      userId={userId}
-                      onPurchaseClick={(productId, network) => {
-                        console.log('Purchase clicked:', productId, network);
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+      {/* Empty State */}
+      {filteredItems.length === 0 && (
+        <div className="bg-white/10 rounded-3xl p-12 text-center backdrop-blur-xl border border-white/20">
+          <Package className="w-20 h-20 mx-auto mb-6 text-gray-400" />
+          <h3 className="text-2xl font-bold text-white mb-4">No Products Found</h3>
+          <p className="text-white/70 text-lg mb-6">
+            Try adjusting your filters to see more products
+          </p>
+          <button
+            onClick={() => {
+              setPriceFilter('all');
+              setCategoryFilter('all');
+              setBudgetOnly(false);
+            }}
+            className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-8 py-3 rounded-full font-bold hover:from-cyan-600 hover:to-blue-600 transition-all"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
-            {groupedByPriority.high.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  🟠 High Priority
-                  <span className="text-sm text-purple-300 font-normal">
-                    ({groupedByPriority.high.length} products)
-                  </span>
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {groupedByPriority.high.map(rec => (
-                    <ProductCard
-                      key={rec.product.id}
-                      recommendation={rec}
-                      userId={userId}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {groupedByPriority.medium.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  🟡 Medium Priority
-                  <span className="text-sm text-purple-300 font-normal">
-                    ({groupedByPriority.medium.length} products)
-                  </span>
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {groupedByPriority.medium.map(rec => (
-                    <ProductCard
-                      key={rec.product.id}
-                      recommendation={rec}
-                      userId={userId}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Revenue Disclaimer */}
-            <div className="mt-8 bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10">
-              <p className="text-xs text-purple-300 text-center">
-                <DollarSign className="w-3 h-3 inline mr-1" />
-                VagalSync may earn a small commission from purchases made through these links at no extra cost to you. 
-                We only recommend products that genuinely support your biomarker optimization.
-              </p>
-            </div>
-          </>
-        )}
+      {/* AI Shopping Assistant */}
+      <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-3xl p-8 border border-purple-400/30 backdrop-blur-xl">
+        <div className="flex items-start space-x-4">
+          <div className="text-4xl">🤖</div>
+          <div>
+            <h3 className="text-2xl font-bold text-white mb-2">AI Shopping Assistant</h3>
+            <p className="text-white/70 mb-4">
+              Based on your myVagal Tone™ score and biomarker data, we recommend the Apollo Neuro 
+              for improving HRV and stress management. It has shown 94% effectiveness in users with 
+              similar profiles to yours.
+            </p>
+            <button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-bold hover:from-purple-700 hover:to-pink-700 transition-all">
+              Get Personalized Recommendations
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
